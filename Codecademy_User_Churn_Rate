@@ -117,7 +117,11 @@ sum_active_30
 sum_canceled_87
 sum_canceled_30
 
-Calculate the churn rates for the two segments over the three month period. Which segment has a lower churn rate?*/
+Note:I have modified this part and added a group by statement instead which saves me the trouble of writing repetitive code. I have finally calculated the churn rates per month per segment.
+
+Calculate the churn rates for the two segments over the three month period. Which segment has a lower churn rate?
+Answer: Segment 30 has a much lower churn rate*/
+
 WITH months AS (
   SELECT 
     '2017-01-01' as first_day,
@@ -137,60 +141,32 @@ cross_join AS (
   CROSS JOIN months
 ),
 status AS (
-  SELECT id,
-    first_day as 'month',
+  SELECT first_day as 'month',
+    segment,
     CASE 
       WHEN (subscription_start < first_day)
       AND (
-        (subscription_end > first_day) OR
+        (subscription_end >= first_day) OR
         (subscription_end IS NULL)
       ) 
-      AND segment = 87
       THEN 1
       ELSE 0
-    END AS 'is_active_87',
-    CASE 
-      WHEN (subscription_start < first_day)
-      AND (
-        (subscription_end > first_day) OR
-        (subscription_end IS NULL)
-      ) 
-      AND segment = 30
-      THEN 1
-      ELSE 0
-    END AS 'is_active_30',
+    END AS 'is_active',
     CASE 
       WHEN (
         subscription_end 
         BETWEEN first_day
         AND last_day 
       ) 
-      AND segment = 87
       THEN 1
       ELSE 0
-    END AS 'is_canceled_87',
-    CASE 
-      WHEN (
-        subscription_end 
-        BETWEEN first_day
-        AND last_day 
-      ) 
-      AND segment = 30
-      THEN 1
-      ELSE 0
-    END AS 'is_canceled_30'
+    END AS 'is_canceled'
   FROM cross_join
-),
-status_aggregate AS(
-  SELECT month,
-    SUM(is_active_87) as 'sum_active_87',
-    SUM(is_active_30) as 'sum_active_30',
-    SUM(is_canceled_87) as 'sum_canceled_87',
-    SUM(is_canceled_30) as 'sum_canceled_30'
-  FROM status
-  GROUP BY month
 )
-SELECT *,
-  1.0*sum_canceled_87/sum_active_87 as 'churn_rate_87',
-  1.0*sum_canceled_30/sum_active_30 as 'churn_rate_30'
-FROM status_aggregate;
+SELECT month,
+  segment,
+  SUM(is_active),
+  SUM(is_canceled),
+  1.0*SUM(is_canceled)/SUM(is_active) as 'churn_rate'
+FROM status
+GROUP BY month,segment;
